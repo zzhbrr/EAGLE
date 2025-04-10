@@ -74,6 +74,10 @@ class EaModel(nn.Module):
         load_=self.ea_layer.load_state_dict(ea_layer_state_dict, strict=False)
         self.ea_layer.to(self.base_model.dtype).to(device)
         self.ea_layer.init_tree()
+        self.logger_accept_length_list = []
+
+    def get_accept_length_logger(self):
+        return self.logger_accept_length_list
 
     def get_tokenizer(self):
         """Get the tokenizer of the base model.
@@ -262,6 +266,7 @@ class EaModel(nn.Module):
             best_candidate, accept_length, sample_p = evaluate_posterior(
                 logits, candidates, logits_processor
             )
+            self.logger_accept_length_list.append(accept_length)
             # print(accept_length)
             # with Timer("update_inference_inputs"):
             input_ids, draft_tokens, retrieve_indices, tree_mask, tree_position_ids, new_token, hidden_state, sample_token = update_inference_inputs(
