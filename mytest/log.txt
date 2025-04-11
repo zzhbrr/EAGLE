@@ -1,0 +1,5 @@
+draft token: 40, mean accept length: 1.9409448818897639
+draft token: 20, mean accept length: 1.757380073800738
+draft token: 10, mean accept length: 1.4066455696202531
+draft token: 5, mean accept length: 1.1467153284671532
+draft token: 30, mean accept length: 1.9173151750972763
