@@ -38,7 +38,7 @@ for i in tqdm(range(num_eval_steps)):
     # sequence = dataset[i]["article"]
     sequence = dataset[i]["chat"][0][1]
     sequence = sequence[:128]
-    conv = get_conversation_template("mixtral")
+    conv = get_conversation_template("llama-2-chat")
     conv.append_message(conv.roles[0], sequence)
     conv.append_message(conv.roles[1], None)
     prompt = conv.get_prompt()
