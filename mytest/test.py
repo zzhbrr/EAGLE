@@ -1,7 +1,7 @@
 # python -m eagle.application.webui --ea-model-path /data1/zzh/huggingface/hub/models--yuhuili--EAGLE-mixtral-instruct-8x7B/snapshots/f2e9cd1e1efaf0dec41c2da1b1fae4327727871d --base-model-path /data1/zzh/huggingface/hub/models--mistralai--Mixtral-8x7B-Instruct-v0.1/snapshots/41bd4c9e7e4fb318ca40e721131d4933966c2cc1 --model-type mixtral --total-token -1
 import torch
 import sys
-sys.path.append("/home/zzh/codes/SpecMoE/EagleTest/EAGLE")
+sys.path.append("/home/zzh/codes/EAGLE")
 from eagle.model.ea_model import EaModel
 from fastchat.model import get_conversation_template
 import torch.autograd.profiler as profiler
@@ -11,8 +11,14 @@ from transformers import DataCollatorForLanguageModeling, AutoTokenizer
 from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 import numpy as np
+import argparse
 
-draft_token_number = 30
+# 将draft_token_number作为参数传入
+parser = argparse.ArgumentParser()
+parser.add_argument("--draft_token_number", type=int, default=50)
+args = parser.parse_args()
+draft_token_number = args.draft_token_number
+print(f"draft_token_number: {draft_token_number}")
 
 model = EaModel.from_pretrained(
     base_model_path="/data1/zzh/huggingface/hub/models--mistralai--Mixtral-8x7B-Instruct-v0.1/snapshots/41bd4c9e7e4fb318ca40e721131d4933966c2cc1",
@@ -31,33 +37,34 @@ tokenizer.pad_token = tokenizer.eos_token
 seq_len = 128
 # dataset = load_dataset("cnn_dailymail", "1.0.0", split="test[0:1000]")
 dataset = load_dataset("liyucheng/sharegpt-500", split="train")
+# dataset = dataset.shuffle()
 num_eval_steps = 25
+input_length = 256
 for i in tqdm(range(num_eval_steps)):
 # for i in range(num_eval_steps):
     # apply template
     # sequence = dataset[i]["article"]
     sequence = dataset[i]["chat"][0][1]
-    sequence = sequence[:128]
-    conv = get_conversation_template("llama-2-chat")
-    conv.append_message(conv.roles[0], sequence)
-    conv.append_message(conv.roles[1], None)
-    prompt = conv.get_prompt()
-    input_ids=tokenizer([prompt]).input_ids
-    input_ids = torch.as_tensor(input_ids).cuda()
-    # chat_input = [{"role": "user", "content": sequence}]
-    # prompt = tokenizer.apply_chat_template(chat_input, tokenize=False)
-    # inputs_id = tokenizer(prompt, return_tensors='pt',max_length=seq_len,padding=True,truncation=True)
-    # input_ids = inputs_id['input_ids'][..., :128]
-    # attention_mask = inputs_id['attention_mask'][..., :128]
-    output_ids=model.eagenerate(input_ids,temperature=0.5,max_new_tokens=128)
+    # conv = get_conversation_template("llama-2-chat")
+    # conv.append_message(conv.roles[0], sequence)
+    # conv.append_message(conv.roles[1], None)
+    # prompt = conv.get_prompt()
+    # input_ids=tokenizer([prompt]).input_ids
+    # input_ids=input_ids[:input_length]
+    # input_ids = torch.as_tensor(input_ids).cuda()
+    chat_input = [{"role": "user", "content": sequence}]
+    prompt = tokenizer.apply_chat_template(chat_input, tokenize=False)
+    inputs_id = tokenizer(prompt, return_tensors='pt',max_length=seq_len,padding=True,truncation=True)
+    input_ids = inputs_id['input_ids'][..., :input_length]
+    output_ids=model.eagenerate(input_ids,temperature=0.5,max_new_tokens=128,max_length=(input_length+draft_token_number*2+128)*3)
 
 acc_length_list = model.get_accept_length_logger()
 # print(acc_length_list)
 print(np.mean(acc_length_list))
-savefile = "/home/zzh/codes/SpecMoE/EagleTest/EAGLE/mytest/log.txt"
+savefile = "/home/zzh/codes/EAGLE/mytest/log.txt"
 with open(savefile, "a") as f:
     f.write(f"draft token: {draft_token_number}, mean accept length: {np.mean(acc_length_list)}\n")
-savefile2 = f"/home/zzh/codes/SpecMoE/EagleTest/EAGLE/mytest/log_accpe_length_{draft_token_number}.txt"
+savefile2 = f"/home/zzh/codes/EAGLE/mytest/log_accpe_length_{draft_token_number}.txt"
 with open(savefile2, "a") as f:
     f.write(f"{acc_length_list}\n")
 
